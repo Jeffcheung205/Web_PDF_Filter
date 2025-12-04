@@ -1,10 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="UTF-8">
+    <title>PDF Filter</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 </head>
-<body>
-$END$
+<body class="d-flex flex-column align-items-center justify-content-start min-vh-100 bg-light">
+    <div class="text-center mt-4 pt-3">
+        <!-- icon placed at top center (with extra top margin) -->
+        <img height="120" src="{{ url_for('static', filename='pdf_icon.jpg') }}" alt="PDF Image" class="mb-2 mx-auto d-block"/>
+        <h1 class="mb-3">Jeff_PDF Filter</h1>
+
+        <!-- buttons stacked vertically below the icon -->
+        <div class="d-flex flex-column gap-2 align-items-center mt-3">
+            <a class="btn btn-secondary btn-lg" href="{{ url_for('pdf_filter') }}">PDF Filter</a>
+        </div>
+    </div>
 </body>
 </html>
