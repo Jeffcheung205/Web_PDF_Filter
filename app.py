@@ -30,14 +30,8 @@ def calculate_csv():
 
         files = request.files.getlist('files')
 
-        dataframes = []
-        for f in files:
-            df = pd.read_csv(f)
-
-            df['total'] = df['qty'] * df['cost']
-            dataframes.append(df)
-
-        #Combine dataframe to single one
+        # Optimize: Process and concatenate DataFrames directly without intermediate list
+        dataframes = (pd.read_csv(f).assign(total=lambda x: x['qty'] * x['cost']) for f in files)
         combined_df = pd.concat(dataframes, ignore_index=True)
 
         table_html = combined_df.to_html(classes='table', index=False)
@@ -69,44 +63,58 @@ def pdf_filter():
         if fitz is None:
             return render_template('pdf_result.html', message='PDF support is not available on the server. Install pymupdf.')
 
+        # Optimize: Precompute lowercase keyword for comparison
+        keyword_lower = keyword.lower()
+        
+        doc = None
+        out_doc = None
+        
         try:
             # read uploaded file bytes
             pdf_bytes = pdf_file.read()
             doc = fitz.open(stream=pdf_bytes, filetype='pdf')
-        except Exception as e:
-            return render_template('pdf_result.html', message=f'Failed to read PDF: {e}')
-
-        out_doc = fitz.open()
-        matched_pages = 0
-
-        # iterate pages and test for keyword (case-insensitive)
-        for page_num in range(doc.page_count):
-            try:
-                page = doc.load_page(page_num)
-                text = page.get_text('text') or ''
-            except Exception:
-                text = ''
-
-            if keyword.lower() in text.lower():
-                # insert this single page into output
+            out_doc = fitz.open()
+            
+            # Optimize: Collect matching page numbers first for batch processing
+            matching_pages = []
+            
+            # iterate pages and test for keyword (case-insensitive)
+            for page_num in range(doc.page_count):
+                try:
+                    page = doc.load_page(page_num)
+                    # Optimize: Get text once per page
+                    text = page.get_text('text') or ''
+                    
+                    # Optimize: Use precomputed lowercase keyword
+                    if keyword_lower in text.lower():
+                        matching_pages.append(page_num)
+                except Exception:
+                    # Skip pages that fail to load
+                    continue
+            
+            if not matching_pages:
+                return render_template('pdf_result.html', message=f'No pages matched the keyword "{keyword}".')
+            
+            # Optimize: Batch insert all matching pages
+            for page_num in matching_pages:
                 out_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
-                matched_pages += 1
-
-        if matched_pages == 0:
-            doc.close()
-            out_doc.close()
-            return render_template('pdf_result.html', message=f'No pages matched the keyword "{keyword}".')
-
-        try:
+            
+            # Generate output
             out_bytes = out_doc.write()
             out_io = io.BytesIO(out_bytes)
             out_io.seek(0)
+            
+            download_name = f'filtered_{keyword}.pdf'
+            return send_file(out_io, mimetype='application/pdf', as_attachment=True, download_name=download_name)
+            
+        except Exception as e:
+            return render_template('pdf_result.html', message=f'Failed to process PDF: {e}')
         finally:
-            doc.close()
-            out_doc.close()
-
-        download_name = f'filtered_{keyword}.pdf'
-        return send_file(out_io, mimetype='application/pdf', as_attachment=True, download_name=download_name)
+            # Ensure proper cleanup in all cases
+            if doc is not None:
+                doc.close()
+            if out_doc is not None:
+                out_doc.close()
 
     # GET
     return render_template('pdf_filter.html')
