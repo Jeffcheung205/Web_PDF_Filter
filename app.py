@@ -75,18 +75,19 @@ def pdf_filter():
             doc = fitz.open(stream=pdf_bytes, filetype='pdf')
             out_doc = fitz.open()
             
-            # Optimize: Collect matching page numbers first for batch processing
+            # Optimize: Collect matching page numbers to avoid repeated inserts during iteration
             matching_pages = []
             
             # iterate pages and test for keyword (case-insensitive)
             for page_num in range(doc.page_count):
                 try:
                     page = doc.load_page(page_num)
-                    # Optimize: Get text once per page
+                    # Optimize: Get text once per page and precompute lowercase
                     text = page.get_text('text') or ''
+                    text_lower = text.lower()
                     
-                    # Optimize: Use precomputed lowercase keyword
-                    if keyword_lower in text.lower():
+                    # Optimize: Use precomputed lowercase strings
+                    if keyword_lower in text_lower:
                         matching_pages.append(page_num)
                 except Exception:
                     # Skip pages that fail to load
@@ -95,7 +96,7 @@ def pdf_filter():
             if not matching_pages:
                 return render_template('pdf_result.html', message=f'No pages matched the keyword "{keyword}".')
             
-            # Optimize: Batch insert all matching pages
+            # Insert matching pages into output document
             for page_num in matching_pages:
                 out_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
             
